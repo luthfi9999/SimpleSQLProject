@@ -6,11 +6,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.android.volley.Request
-import com.android.volley.Response
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import com.google.gson.JsonArray
 import org.json.JSONException
+import com.google.gson.JsonObject
 import org.json.JSONObject
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.util.*
 
 class UserTable : AppCompatActivity() {
@@ -21,18 +25,40 @@ class UserTable : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.read_user)
         initRecyclerView();
-        addDataSet();
+        showRetro();
         userAdapter?.notifyDataSetChanged()
     }
+    private fun showRetro(){
+        var jsonObject:Callback<JsonObject>?=null
+        NetworkConfig().getService()
+                .getUsers()
+                .enqueue(object :Callback<JsonObject>{
+                    override fun onResponse(call: Call<JsonObject>, response: Response<JsonObject>) {
+                        var jsonArray=response.body()?.getAsJsonArray("data")
+                        var b:Int=0
+                        for(i in 0..(jsonArray?.size()?.minus(1)!!)){
+                            userListData.add(UserData(jsonArray?.get(i)?.asJsonObject?.get("id")?.
+                                asInt,jsonArray?.get(i)?.asJsonObject?.get("Username")?.asString,
+                                    jsonArray?.get(i)?.asJsonObject?.get("email")?.asString))
+                        }
+                        Toast.makeText(this@UserTable, response.body()?.get("message").toString().trim(), Toast.LENGTH_LONG).show()
+                        userAdapter?.submitList(userListData)
+                    }
 
+                    override fun onFailure(call: Call<JsonObject>, t: Throwable) {
+                        Toast.makeText(this@UserTable, t.localizedMessage, Toast.LENGTH_LONG).show()
+                    }
+
+                })
+    }
     private fun addDataSet() {
         var stringRequest=StringRequest(Request.Method.POST, Constants.ShowAll_URL,
-                Response.Listener<String> { response ->
+                com.android.volley.Response.Listener<String> { response ->
                     try {
-                        var jsonObject: JSONObject = JSONObject(response)
+                        var jsonObject: org.json.JSONObject = org.json.JSONObject(response)
                         var jsonArray = jsonObject.getJSONArray("data")
                         for (a in 0 until jsonArray.length()) {
-                            var b: JSONObject = jsonArray.getJSONObject(a)
+                            var b: org.json.JSONObject = jsonArray.getJSONObject(a)
                             userListData.add(UserData(b.getInt("id"), b.getString("Username"), b.getString("email")))
                             userAdapter?.submitList(userListData)
                         }
@@ -40,7 +66,7 @@ class UserTable : AppCompatActivity() {
                         e.printStackTrace()
                     }
                 },
-                Response.ErrorListener {
+                com.android.volley.Response.ErrorListener {
 
                 }
 
